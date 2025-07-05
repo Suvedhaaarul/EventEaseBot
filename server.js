@@ -49,6 +49,11 @@ app.post('/webhook', (req, res) => {
   });
 });
 
+app.get('/', (req, res) => {
+  res.send('✅ EventEase Webhook is running');
+});
+
+
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server on port ${PORT}`));
