@@ -13,7 +13,9 @@ const AUDIENCE_ID = process.env.AUDIENCE_ID;
 const TAG_NAME = process.env.TAG_NAME;
 const STATIC_USER_EMAIL = process.env.STATIC_USER_EMAIL;
 
-// Webhook endpoint
+const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
+
+// Webhook endpoint for Dialogflow
 app.post('/webhook', (req, res) => {
   const parameters = req.body.queryResult.parameters;
 
@@ -25,8 +27,8 @@ app.post('/webhook', (req, res) => {
     fulfillmentText: `🎉 You're being registered for ${product}. Please check your email shortly!`
   });
 
-  // Register in Mailchimp
-  const data = {
+  // 👉 Mailchimp subscription
+  const mailchimpData = {
     email_address: email,
     status: 'subscribed',
     tags: [TAG_NAME]
@@ -34,7 +36,7 @@ app.post('/webhook', (req, res) => {
 
   axios.post(
     `https://${SERVER_PREFIX}.api.mailchimp.com/3.0/lists/${AUDIENCE_ID}/members`,
-    data,
+    mailchimpData,
     {
       headers: {
         Authorization: `apikey ${MAILCHIMP_API_KEY}`,
@@ -42,18 +44,40 @@ app.post('/webhook', (req, res) => {
       }
     }
   )
-  .then(() => console.log(`✅ Registered ${email}`))
+  .then(() => console.log(`✅ Registered in Mailchimp: ${email}`))
   .catch((error) => {
     const msg = error?.response?.data?.detail || error.message;
     console.error(`❌ Mailchimp error: ${msg}`);
   });
+
+  // 👉 HubSpot contact creation
+  const hubspotData = {
+    properties: {
+      email: email,
+      firstname: 'Webinar',
+      lastname: product || 'User',
+      lifecyclestage: 'lead'
+    }
+  };
+
+  axios.post('https://api.hubapi.com/crm/v3/objects/contacts', hubspotData, {
+    headers: {
+      Authorization: `Bearer ${HUBSPOT_API_KEY}`,
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(() => console.log(`✅ HubSpot contact created: ${email}`))
+  .catch((error) => {
+    const msg = error?.response?.data?.message || error.message;
+    console.error(`❌ HubSpot error: ${msg}`);
+  });
 });
 
+// Optional: root test route
 app.get('/', (req, res) => {
   res.send('✅ EventEase Webhook is running');
 });
 
-
-// Start server
+// Start the server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Server is running on port ${PORT}`));
